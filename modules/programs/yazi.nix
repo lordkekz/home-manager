@@ -135,6 +135,23 @@ in {
         for the full list of options
       '';
     };
+
+    plugins = mkOption {
+      type = with lib.types; attrsOf package;
+      default = { };
+      example = literalExpression ''
+        # Provided by github:lordkekz/nix-yazi-plugins overlay
+        with pkgs.yaziPlugins; {
+          inherit bypass relative-motions starship;
+        }
+      '';
+      description = ''
+        Packages to link into {file}`$XDG_CONFIG_HOME/yazi/plugins/`.
+
+        See <https://yazi-rs.github.io/docs/plugins/overview>
+        for the full documentation.
+      '';
+    };
   };
 
   config = mkIf cfg.enable {
@@ -160,6 +177,14 @@ in {
       "yazi/theme.toml" = mkIf (cfg.theme != { }) {
         source = tomlFormat.generate "yazi-theme" cfg.theme;
       };
-    };
+    } // (let
+      mkPluginLink = pluginName: pluginPackage: {
+        # Make sure that the directory ends in `.yazi`, to comply with specification.
+        # The `pluginName` is essential, as it'll be needed to apply config in yazi's `init.lua`
+        name = "yazi/plugins/${pluginName}.yazi";
+        value.source = pluginPackage.outPath;
+      };
+      pluginLinks = listToAttrs (mapAttrsToList mkPluginLink cfg.plugins);
+    in pluginLinks);
   };
 }
